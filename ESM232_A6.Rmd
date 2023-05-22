@@ -32,7 +32,7 @@ The size of the forest (C), Canopy closure threshold and carrying capacity are a
 
 source("/R/ESM232/esm232_a6/R/dforestgrowth.R") # on remote desktop
 
-source("~/Documents/MESM Year 2/ESM232/esm232_a6/R/dforestgrowth.R") # on my comp
+# source("~/Documents/MESM Year 2/ESM232/esm232_a6/R/dforestgrowth.R") # on my comp
 
 ```
 
@@ -104,15 +104,15 @@ Cinitial
 # all parameters are normally distributed w means as given above and sd of 0.1 of mean
 np = 2000
 r = rnorm(mean = 0.01, sd = 0.1, n = np)
-g = rnorm(mean = 250, sd = 0.1, n = np)
-K = rnorm(mean = 2, sd = 0.1, n = np)
+g = rnorm(mean = 2, sd = 0.1, n = np)
+K = rnorm(mean = 250, sd = 0.1, n = np)
 X1 = cbind.data.frame(r = r, g = g, K = K)
 
 # repeat to get second set of samples
 
 r = rnorm(mean = 0.01, sd = 0.1, n = np)
-g = rnorm(mean = 250, sd = 0.1, n = np)
-K = rnorm(mean = 2, sd = 0.1, n = np)
+g = rnorm(mean = 2, sd = 0.1, n = np)
+K = rnorm(mean = 250, sd = 0.1, n = np)
 X2 = cbind.data.frame(r = r, g = g, K = K)
 
 # fix negatives since they aren't meaningful
@@ -130,6 +130,7 @@ head(sens_P$X)
 
 colnames(sens_P$X) = c("r", "g", "K")
 
+head(sens_P$X)
 
 ```
 
