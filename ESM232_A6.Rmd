@@ -13,16 +13,26 @@ library(deSolve)
 library(sensitivity)
 
 ```
+# Modeling Dynamic Forest Growth
+
+Consider the following model of forest growth (where forest size in measured in units of carbon (C)):
+
+dC/dt = r ∗ C for forests where C is below a threshold canopy closure
+dC/dt = g ∗ (1 − C/K) for forests where carbon is at or above the threshold canopy closure and 
+K is a carrying capacity in units of carbon
+
+The size of the forest (C), Canopy closure threshold and carrying capacity are all in units of carbon. Growth rates change from exponential (r) to linear (g) when it reaches the canopy closure threshold.
 
 # Instructions
-
 
 1. Implement this model in R (as a differential equation)
 
 ```{r}
 # create and source forest growth model
 
-source("/R/ESM232/esm232_a6/R/dforestgrowth.R")
+source("/R/ESM232/esm232_a6/R/dforestgrowth.R") # on remote desktop
+
+source("~/Documents/MESM Year 2/ESM232/esm232_a6/R/dforestgrowth.R") # on my comp
 
 ```
 
@@ -57,10 +67,12 @@ results <- ode(y = Cinitial, times = years, func= dforestgrowth, parms = parms)
 head(results)
 colnames(results)=c("year","C")
 
-results<- as.data.frame(results)
+# save results as a dataframe for easier plotting
+results <- as.data.frame(results)
 ```
 
-# Graph model with no uncertainty
+3. Graph the results. Here you are graphing the trajectory with the parameters as given (e.g no uncertainty)
+
 
 ```{r}
 ggplot(results, aes(year, C)) +
@@ -69,9 +81,6 @@ ggplot(results, aes(year, C)) +
 ```
 
 
-
-3. Graph the results. Here you are graphing the trajectory with the parameters as given (e.g no uncertainty)
-
 4. Run a sobol global (vary all parameters at the same time) sensitivity analysis that explores how the estimated maximum forest size (e.g maximum of 300 years, varies with these parameters
 * pre canopy closure growth rate (r)
 * post-canopy closure growth rate (g)
@@ -79,23 +88,55 @@ ggplot(results, aes(year, C)) +
 
 Assume that parameters are all normally distributed with means as given above and standard deviation of 10% of mean value
 
+```{r}
+# reduce output dimensionality by finding the maximum forest size over 300 years
+
+max(results$C) # maximum of 183.7213 kgC at year 300
+## should this be directly in the model?
+
+# we already have our intitial forest size
+Cinitial
+
+# obtain parameters sets (from sobel)
+# want to learn about sensitivity to pre-canopy closure growth rate (r), post-canopy closure growth rate (g) and carrying capacity (K)
+
+# set the number of parameters
+# all parameters are normally distributed w means as given above and sd of 0.1 of mean
+np = 2000
+r = rnorm(mean = 0.01, sd = 0.1, n = np)
+g = rnorm(mean = 250, sd = 0.1, n = np)
+K = rnorm(mean = 2, sd = 0.1, n = np)
+X1 = cbind.data.frame(r = r, g = g, K = K)
+
+# repeat to get second set of samples
+
+r = rnorm(mean = 0.01, sd = 0.1, n = np)
+g = rnorm(mean = 250, sd = 0.1, n = np)
+K = rnorm(mean = 2, sd = 0.1, n = np)
+X2 = cbind.data.frame(r = r, g = g, K = K)
+
+# fix negatives since they aren't meaningful
+X1 = X1 %>% map_df(pmax, 0.0)
+X2 = X2 %>% map_df(pmax, 0.0)
+
+# create sobel object and get sets of parameters for running model 
+
+sens_P = sobolSalt(model = NULL, X1, X2, nboot = 300)
+
+# parameter sets are
+head(sens_P$X)
+
+# add names to columns
+
+colnames(sens_P$X) = c("r", "g", "K")
+
+
+```
+
+
 5. Graph the results of the sensitivity analysis as a box plot of maximum forest size and record the two Sobol indices (S and T).
 
 6. In 2-3 sentences, discuss what the results of your simulation might mean. (For example think about how what parameters climate change might influence).
 Submit R markdown with model implementation, graphs and sensitivity analysis and R file with your model
 
 
-
-
-# Dynamic model of Forest Growth 
-
-* models that have feedbacks (conditions evolve through time)
-
-* numerical integration - usually done with a solver 
-  
-  * only one independent variable ordinary differential equation (e.g just time)
-  * we can use the ODE solver
-  
-  * derivative is first order (e.g $dy/dt$ = ;  not $d^2y/dt$+dy/dy  = f(y,t)) 
-  
-  * there are ways to solve high order and partial differential equations
