@@ -1,19 +1,22 @@
 ---
 title: 'Assignment 6: Using Sobol with an ODE'
-author: "Katheryn Moya"
-output: html_document
+author: "Katheryn Moya and Sarah Lam"
+output:
+  html_document:
+    code_folding: show
 date: '2023-05-19'
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=FALSE, warning = FALSE, message = FALSE, echo = TRUE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = TRUE)
 
 library(tidyverse)
 library(deSolve)
 library(sensitivity)
 
 ```
-# Modeling Dynamic Forest Growth
+
+## Modeling Dynamic Forest Growth
 
 Consider the following model of forest growth (where forest size in measured in units of carbon (C)):
 
@@ -23,9 +26,6 @@ K is a carrying capacity in units of carbon
 
 The size of the forest (C), Canopy closure threshold and carrying capacity are all in units of carbon. Growth rates change from exponential (r) to linear (g) when it reaches the canopy closure threshold.
 
-# Instructions
-
-1. Implement this model in R (as a differential equation)
 
 ```{r}
 # create and source forest growth model
@@ -37,13 +37,7 @@ source("/R/ESM232/esm232_a6/R/dforestgrowth.R") # on remote desktop
 ```
 
 
-2. Run the model for 300 years (using the ODE solver) starting with an initial forest size of 10 kg/C, and using the following parameters:
-* canopy closure threshold of 50 kgC
-* K = 250 kg C (carrying capacity)
-* r = 0.01 (exponential growth rate before before canopy closure)
-* g = 2 kg/year (linear growth rate after canopy closure)
-
-
+## Run model for 300 years with no uncertainty
 ```{r}
 # set initial forest size 
 
@@ -64,41 +58,41 @@ years <-seq(from=1, to=300)
 # run model for 300 years using ODE solver
 
 results <- ode(y = Cinitial, times = years, func= dforestgrowth, parms = parms)
-head(results)
+# head(results)
 colnames(results)=c("year","C")
 
 # save results as a dataframe for easier plotting
 results <- as.data.frame(results)
 ```
 
-3. Graph the results. Here you are graphing the trajectory with the parameters as given (e.g no uncertainty)
-
 
 ```{r}
+# visualize
+
 ggplot(results, aes(year, C)) +
-  geom_line()
+  geom_line(color = "forestgreen") +
+  labs(x = "Year",
+       y = "Forest Size (kg C)") +
+  theme_minimal() 
+
 
 ```
 
 
-##4. Run a sobol global (vary all parameters at the same time) sensitivity analysis that explores how the estimated maximum forest size (e.g maximum of 300 years, varies with these parameters
-* pre canopy closure growth rate (r)
-* post-canopy closure growth rate (g)
-* canopy closure threshold and carrying capacity(K)
+## Run a Sobol global sensitivity analysis for maximum forest size
 
-Assume that parameters are all normally distributed with means as given above and standard deviation of 10% of mean value
 
-### Create samples to make Sobol Object
 ```{r}
+### Create samples to make Sobol Object
 # reduce output dimensionality by finding the maximum forest size over 300 years
 
 max_c = max(results$C) # maximum of 183.7213 kgC at year 300
-## should this be directly in the model?
+
 
 # we already have our intitial forest size
 Cinitial
 
-# obtain parameters sets (from sobel)
+# obtain parameters sets (from sobol)
 # want to learn about sensitivity to pre-canopy closure growth rate (r), post-canopy closure growth rate (g) and carrying capacity (K)
 
 # set the number of parameters
@@ -135,12 +129,13 @@ head(sens_P$X)
 
 ```
 
-### Run ODE with sobol object
 
 ```{r}
+### Run ODE with sobol object
+
 # define a wrapper function to do everything we need - run solver and compute metrics - and send back results for each parameter
 
-c_wrapper = function (r, g, K, closure, Cinitial, times, func){
+c_wrapper = function (results, r, g, K, closure, Cinitial, times, func){
   parms = list(r = r, g = g, K = K, closure = closure)
   results = ode(y = Cinitial, times = times, func = func, parms = parms)
   colnames(results) = c("time", "C")
@@ -149,35 +144,58 @@ c_wrapper = function (r, g, K, closure, Cinitial, times, func){
   
   results = as.data.frame(results)
   max_C = max(results$C)
-  return(list(max_c = max_c))
+  return(list(max_C = max_C))
 }
 
 # use pmap
 
-all_results = as.data.frame(sens_P$X) %>% # order of operations will assume this is the list we are referring to for pmap
-  pmap(c_wrapper, closure = closure, Cinitial=Cinitial, times=years, func=dforestgrowth)
+all_results = as.data.frame(sens_P$X) # order of operations will assume this is the list we are referring to for pmap|
+
+
+allres = all_results  %>%  pmap(c_wrapper, results = all_results,closure = closure, Cinitial=Cinitial, times=years, func=dforestgrowth)
 
 # extract out results from pmap into a data frame
-allres = all_results %>% map_dfr(`[`,c("max_c"))
+final_allres = allres %>% map_dfr(`[`,c("max_C"))
 
 ```
 
 
 
-5. Graph the results of the sensitivity analysis as a box plot of maximum forest size and record the two Sobol indices (S and T).
+## Visualize Sensitivity and Compute Sobol Indices
+```{r}
+# create boxplots
+tmp = final_allres %>% pivot_longer(cols= everything(), names_to="metric", values_to="C")
+
+ggplot(tmp, aes(metric, C, color = metric, fill = metric))+ 
+  geom_boxplot(width = 0.3) +
+  scale_color_manual(values = "forestgreen") +
+  scale_fill_manual(values = "#ccdcc3") +
+  theme_minimal() +
+  theme(
+    legend.position = "none"
+  )
+  
+
+
+```
+
 
 ```{r}
+## sobol indices - have to do them separately
 
-# create boxplots
-tmp = allres %>% pivot_longer(cols=everything(),names_to="metric", values_to="value")
-ggplot(tmp, aes(metric, value, col=metric))+geom_boxplot()
+sens_max_C = sensitivity::tell(sens_P, final_allres$max_C)
+
+
+#first-order indices (main effect without co-variance)
+sens_max_C$S
+
+# total sensitivity index (partitioning the output variance)
+
+sens_max_C$T
 
 ```
 
+## Discussion 
 
-
-
-6. In 2-3 sentences, discuss what the results of your simulation might mean. (For example think about how what parameters climate change might influence).
-Submit R markdown with model implementation, graphs and sensitivity analysis and R file with your model
-
+The results of our simulation demonstrate that the most variance in forest size is attributed to the exponential growth rate before canopy closure (r). The total effect shows that r and the carrying capacity (K) interact the most with respect to influencing the variance in maximum forest size. This makes sense as the exponential growth rate is limited by the canopy closure threshold, where then forest growth is limited by the carrying capacity. Climate change will further influence these two parameters as decreased water availability may influence growth rates and reduce the overall carrying capacity for forest growth. 
 
