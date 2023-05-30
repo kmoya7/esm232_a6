@@ -534,17 +534,18 @@ Cinitial</code></pre>
 
 # set the number of parameters
 # all parameters are normally distributed w means as given above and sd of 0.1 of mean
+sd = 0.1
 np = 200
-r = rnorm(mean = 0.01, sd = 0.1, n = np)
-g = rnorm(mean = 2, sd = 0.1, n = np)
-K = rnorm(mean = 250, sd = 0.1, n = np)
+r = rnorm(mean = 0.01, sd = r*sd, n = np)
+g = rnorm(mean = 2, sd = g*sd, n = np)
+K = rnorm(mean = 250, sd = K*sd, n = np)
 X1 = cbind.data.frame(r = r, g = g, K = K)
 
 # repeat to get second set of samples
 
-r = rnorm(mean = 0.01, sd = 0.1, n = np)
-g = rnorm(mean = 2, sd = 0.1, n = np)
-K = rnorm(mean = 250, sd = 0.1, n = np)
+r = rnorm(mean = 0.01, sd = r*sd, n = np)
+g = rnorm(mean = 2, sd = g*sd, n = np)
+K = rnorm(mean = 250, sd = K*sd, n = np)
 X2 = cbind.data.frame(r = r, g = g, K = K)
 
 # fix negatives since they aren&#39;t meaningful
